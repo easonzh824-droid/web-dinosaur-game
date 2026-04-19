@@ -3,22 +3,108 @@ const dino = document.getElementById("dino");
 const scoreEl = document.getElementById("score");
 const livesEl = document.getElementById("lives");
 const modeEl = document.getElementById("mode");
+const chapterHintEl = document.getElementById("chapterHint");
+const chapterBannerEl = document.getElementById("chapterBanner");
 const messageEl = document.getElementById("message");
 const portalEl = document.getElementById("specialPortal");
 const startBtn = document.getElementById("startBtn");
 const restartBtn = document.getElementById("restartBtn");
 
+const FLOOR = 72;
+const STAGE_CLASSES = ["chapter-plains", "chapter-sandstorm", "chapter-ruins", "chapter-special", "chapter-rush"];
+
+const CHAPTERS = {
+  plains: {
+    name: "草原熱身",
+    hint: "熟悉跳躍節奏",
+    speed: 6,
+    gravity: 0.88,
+    jumpForce: 15.5,
+    spawnBase: 1120,
+    pickupInterval: 0,
+    stageClass: "chapter-plains",
+    message: ["草原上先暖機，障礙比較單純。", "注意節奏，後面每一章都會改變玩法。"],
+    patterns: [
+      [{ kind: "cactus" }],
+      [{ kind: "cactus" }, { kind: "cactus", offset: 72 }],
+      [{ kind: "bird", height: 32 }],
+    ],
+  },
+  sandstorm: {
+    name: "沙暴追擊",
+    hint: "視野變差，飛鳥變多",
+    speed: 7.2,
+    gravity: 0.92,
+    jumpForce: 15.2,
+    spawnBase: 970,
+    pickupInterval: 0,
+    stageClass: "chapter-sandstorm",
+    message: ["沙暴會讓畫面更混亂，飛鳥也會貼著地面突襲。", "有些障礙間距更短，提早準備起跳。"],
+    patterns: [
+      [{ kind: "bird", height: 24 }],
+      [{ kind: "cactus" }, { kind: "bird", offset: 145, height: 20 }],
+      [{ kind: "rock" }, { kind: "cactus", offset: 94 }],
+    ],
+  },
+  ruins: {
+    name: "斷垣遺跡",
+    hint: "需要跳躍與蹲下混用",
+    speed: 7.8,
+    gravity: 0.9,
+    jumpForce: 15.7,
+    spawnBase: 920,
+    pickupInterval: 0,
+    stageClass: "chapter-ruins",
+    message: ["遺跡裡會出現殘柱和低門，不能只靠跳。", "看到低門時要蹲下滑過去。"],
+    patterns: [
+      [{ kind: "pillar" }],
+      [{ kind: "gate" }],
+      [{ kind: "pillar" }, { kind: "gate", offset: 162 }],
+      [{ kind: "rock" }, { kind: "rock", offset: 78 }, { kind: "bird", offset: 170, height: 30 }],
+    ],
+  },
+  special: {
+    name: "流星失重區",
+    hint: "低重力，收集能量晶體",
+    speed: 8.3,
+    gravity: 0.46,
+    jumpForce: 12.8,
+    spawnBase: 880,
+    pickupInterval: 1450,
+    stageClass: "chapter-special",
+    message: ["你進入了低重力流星區，跳躍會更飄。", "藍色晶體能加分，但流星會從高處快速掠過。"],
+    patterns: [
+      [{ kind: "meteor", height: 110 }],
+      [{ kind: "meteor", height: 170 }, { kind: "meteor", offset: 110, height: 95 }],
+      [{ kind: "meteor", height: 140 }, { kind: "crater", offset: 170 }],
+    ],
+  },
+  rush: {
+    name: "極速衝刺",
+    hint: "速度最高，連續判斷",
+    speed: 9.3,
+    gravity: 0.9,
+    jumpForce: 15.4,
+    spawnBase: 760,
+    pickupInterval: 0,
+    stageClass: "chapter-rush",
+    message: ["最後衝刺開始，速度大幅提高。", "連續障礙會更密集，蹲和跳要銜接得更快。"],
+    patterns: [
+      [{ kind: "cactus" }, { kind: "rock", offset: 86 }, { kind: "bird", offset: 188, height: 28 }],
+      [{ kind: "gate" }, { kind: "rock", offset: 122 }],
+      [{ kind: "pillar" }, { kind: "pillar", offset: 92 }, { kind: "rock", offset: 194 }],
+    ],
+  },
+};
+
 const gameState = {
   running: false,
   score: 0,
   lives: 3,
-  mode: "normal",
-  gravity: 0.88,
-  speed: 6,
   y: 0,
   velocityY: 0,
-  jumpForce: 15.5,
   ducking: false,
+  chapterKey: "plains",
   obstacles: [],
   pickups: [],
   lastTime: 0,
@@ -29,11 +115,13 @@ const gameState = {
   portalTriggered: false,
   portalX: 0,
   specialEndScore: 0,
+  rushUnlocked: false,
+  shownMessages: new Set(),
 };
 
-const FLOOR = 72;
-const NORMAL_MODE_NAME = "一般地表";
-const SPECIAL_MODE_NAME = "特殊關卡";
+function currentChapter() {
+  return CHAPTERS[gameState.chapterKey];
+}
 
 function showMessage(title, lines) {
   messageEl.innerHTML = `
@@ -47,25 +135,49 @@ function hideMessage() {
   messageEl.classList.remove("visible");
 }
 
-function updateHud() {
-  scoreEl.textContent = Math.floor(gameState.score);
-  livesEl.textContent = gameState.lives;
-  modeEl.textContent = gameState.mode === "special" ? SPECIAL_MODE_NAME : NORMAL_MODE_NAME;
-}
-
 function clearActors() {
   [...gameState.obstacles, ...gameState.pickups].forEach((actor) => actor.remove());
   gameState.obstacles = [];
   gameState.pickups = [];
 }
 
+function applyChapterStyles() {
+  STAGE_CLASSES.forEach((className) => stage.classList.remove(className));
+  const chapter = currentChapter();
+  stage.classList.add(chapter.stageClass);
+  modeEl.textContent = chapter.name;
+  chapterHintEl.textContent = chapter.hint;
+  chapterBannerEl.textContent = chapter.name;
+}
+
+function updateHud() {
+  scoreEl.textContent = Math.floor(gameState.score);
+  livesEl.textContent = gameState.lives;
+  applyChapterStyles();
+}
+
+function setChapter(chapterKey, showIntro = false) {
+  gameState.chapterKey = chapterKey;
+  gameState.spawnTimer = 0;
+  gameState.pickupTimer = 0;
+  clearActors();
+  applyChapterStyles();
+
+  if (showIntro) {
+    const chapter = currentChapter();
+    showMessage(chapter.name, chapter.message);
+    window.setTimeout(() => {
+      if (gameState.running) {
+        hideMessage();
+      }
+    }, 1700);
+  }
+}
+
 function resetGame() {
   gameState.running = false;
   gameState.score = 0;
   gameState.lives = 3;
-  gameState.mode = "normal";
-  gameState.gravity = 0.88;
-  gameState.speed = 6;
   gameState.y = 0;
   gameState.velocityY = 0;
   gameState.ducking = false;
@@ -77,20 +189,21 @@ function resetGame() {
   gameState.portalTriggered = false;
   gameState.portalX = 0;
   gameState.specialEndScore = 0;
+  gameState.rushUnlocked = false;
+  gameState.shownMessages = new Set();
   clearActors();
   portalEl.classList.add("hidden");
   portalEl.style.left = "";
   portalEl.style.right = "88px";
-  stage.classList.remove("special");
   dino.classList.remove("duck");
   dino.style.bottom = `${FLOOR}px`;
-  dino.style.transform = "translateY(0)";
   dino.style.opacity = "1";
   dino.style.filter = "none";
+  setChapter("plains");
   updateHud();
   showMessage("小恐龍特別行動", [
-    "按空白鍵開始，空白鍵跳躍，方向下鍵快速落地或蹲下。",
-    "撐過一般地表後，會開啟低重力流星特殊關卡。",
+    "按空白鍵開始，空白鍵跳躍，方向下鍵可以蹲下或快速落地。",
+    "你會依序闖過草原、沙暴、遺跡、流星失重區與極速衝刺。",
   ]);
 }
 
@@ -116,7 +229,7 @@ function jump() {
   }
 
   if (gameState.y === 0) {
-    gameState.velocityY = gameState.mode === "special" ? 12.8 : gameState.jumpForce;
+    gameState.velocityY = currentChapter().jumpForce;
   }
 }
 
@@ -125,37 +238,45 @@ function setDuck(enabled) {
   dino.classList.toggle("duck", gameState.ducking);
 }
 
-function spawnObstacle() {
+function createObstacle(kind, offset = 0, height = 0) {
   const obstacle = document.createElement("div");
-  obstacle.classList.add("obstacle");
+  obstacle.classList.add("obstacle", kind);
+  obstacle.dataset.kind = kind;
+  obstacle.style.left = `${stage.clientWidth + 10 + offset}px`;
 
-  if (gameState.mode === "special") {
-    obstacle.classList.add("meteor");
-    obstacle.dataset.kind = "meteor";
-    obstacle.style.bottom = `${FLOOR + 70 + Math.random() * 150}px`;
-  } else if (Math.random() > 0.7) {
-    obstacle.classList.add("bird");
-    obstacle.dataset.kind = "bird";
-    obstacle.style.bottom = `${FLOOR + 20 + Math.random() * 52}px`;
-  } else {
-    obstacle.classList.add("cactus");
-    obstacle.dataset.kind = "cactus";
-    obstacle.style.bottom = `${FLOOR}px`;
+  let bottom = FLOOR;
+  if (kind === "bird") {
+    bottom = FLOOR + height;
+  }
+  if (kind === "meteor") {
+    bottom = FLOOR + height;
+  }
+  if (kind === "gate") {
+    bottom = FLOOR + 26;
+  }
+  if (kind === "crater") {
+    bottom = FLOOR - 2;
   }
 
-  obstacle.style.left = `${stage.clientWidth + 10}px`;
+  obstacle.style.bottom = `${bottom}px`;
   stage.appendChild(obstacle);
   gameState.obstacles.push(obstacle);
 }
 
+function spawnObstaclePattern() {
+  const chapter = currentChapter();
+  const pattern = chapter.patterns[Math.floor(Math.random() * chapter.patterns.length)];
+  pattern.forEach((item) => createObstacle(item.kind, item.offset || 0, item.height || 0));
+}
+
 function spawnPickup() {
-  if (gameState.mode !== "special") {
+  if (gameState.chapterKey !== "special") {
     return;
   }
 
   const crystal = document.createElement("div");
   crystal.classList.add("pickup", "crystal");
-  crystal.style.left = `${stage.clientWidth + 10}px`;
+  crystal.style.left = `${stage.clientWidth + 20}px`;
   crystal.style.bottom = `${FLOOR + 80 + Math.random() * 150}px`;
   stage.appendChild(crystal);
   gameState.pickups.push(crystal);
@@ -175,45 +296,38 @@ function intersects(a, b) {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 }
 
-function enterSpecialMode() {
-  gameState.mode = "special";
-  gameState.gravity = 0.45;
-  gameState.speed = 7.8;
-  gameState.spawnTimer = 0;
-  gameState.pickupTimer = 0;
-  gameState.specialEndScore = gameState.score + 220;
-  gameState.portalTriggered = true;
-  gameState.portalReady = false;
-  portalEl.classList.add("hidden");
-  stage.classList.add("special");
-  showMessage("特殊關卡啟動", [
-    "進入低重力流星區，跳躍更飄，但流星會從高處高速掠過。",
-    "收集藍色能量晶體可額外加分，撐到出口就能回到地表。",
-  ]);
-  window.setTimeout(() => {
-    if (gameState.running && gameState.mode === "special") {
-      hideMessage();
-    }
-  }, 1800);
+function transitionChapterIfNeeded() {
+  if (!gameState.shownMessages.has("sandstorm") && gameState.score >= 90 && gameState.chapterKey === "plains") {
+    gameState.shownMessages.add("sandstorm");
+    setChapter("sandstorm", true);
+    return;
+  }
+
+  if (!gameState.shownMessages.has("ruins") && gameState.score >= 190 && gameState.chapterKey === "sandstorm") {
+    gameState.shownMessages.add("ruins");
+    setChapter("ruins", true);
+    return;
+  }
+
+  if (!gameState.portalTriggered && !gameState.portalReady && gameState.score >= 300 && gameState.chapterKey === "ruins") {
+    gameState.portalReady = true;
+    gameState.portalX = stage.clientWidth + 20;
+    portalEl.classList.remove("hidden");
+    portalEl.style.right = "auto";
+  }
+
+  if (gameState.chapterKey === "special" && gameState.score >= gameState.specialEndScore) {
+    gameState.rushUnlocked = true;
+    setChapter("rush", true);
+  }
 }
 
-function leaveSpecialMode() {
-  gameState.mode = "normal";
-  gameState.gravity = 0.88;
-  gameState.speed = 8.2;
-  gameState.spawnTimer = 0;
-  gameState.pickupTimer = 0;
-  stage.classList.remove("special");
-  clearActors();
-  showMessage("成功脫出", [
-    "你穿越了特殊關卡，地表模式重新開放。",
-    "接下來速度會更快，看看你能撐多久。",
-  ]);
-  window.setTimeout(() => {
-    if (gameState.running && gameState.mode === "normal") {
-      hideMessage();
-    }
-  }, 1600);
+function enterSpecialMode() {
+  gameState.portalTriggered = true;
+  gameState.portalReady = false;
+  gameState.specialEndScore = gameState.score + 220;
+  portalEl.classList.add("hidden");
+  setChapter("special", true);
 }
 
 function takeHit(now) {
@@ -238,19 +352,21 @@ function takeHit(now) {
     gameState.running = false;
     showMessage("任務失敗", [
       `最終分數：${Math.floor(gameState.score)}`,
-      "按空白鍵或點擊重新開始，再挑戰一次。",
+      "你已經看過多段關卡節奏了，按重新開始再挑戰一次。",
     ]);
   }
 }
 
 function moveActors(delta, now) {
   const dinoBounds = getBounds(dino);
+  const speed = currentChapter().speed;
 
   gameState.obstacles = gameState.obstacles.filter((obstacle) => {
-    const left = parseFloat(obstacle.style.left) - gameState.speed * delta * 0.06;
+    const extra = obstacle.dataset.kind === "meteor" ? 1.4 : 1;
+    const left = parseFloat(obstacle.style.left) - speed * extra * delta * 0.06;
     obstacle.style.left = `${left}px`;
 
-    if (left < -80) {
+    if (left < -120) {
       obstacle.remove();
       return false;
     }
@@ -265,7 +381,7 @@ function moveActors(delta, now) {
   });
 
   gameState.pickups = gameState.pickups.filter((pickup) => {
-    const left = parseFloat(pickup.style.left) - (gameState.speed - 1.2) * delta * 0.06;
+    const left = parseFloat(pickup.style.left) - (speed - 1) * delta * 0.06;
     pickup.style.left = `${left}px`;
 
     if (left < -60) {
@@ -274,7 +390,7 @@ function moveActors(delta, now) {
     }
 
     if (intersects(dinoBounds, getBounds(pickup))) {
-      gameState.score += 25;
+      gameState.score += 30;
       pickup.remove();
       return false;
     }
@@ -284,7 +400,8 @@ function moveActors(delta, now) {
 }
 
 function updateDino(delta) {
-  gameState.velocityY -= gameState.gravity * delta * 0.06;
+  const chapter = currentChapter();
+  gameState.velocityY -= chapter.gravity * delta * 0.06;
   gameState.y += gameState.velocityY * delta * 0.06;
 
   if (gameState.y < 0) {
@@ -305,33 +422,27 @@ function loop(timestamp) {
   gameState.lastTime = timestamp;
 
   gameState.score += delta * 0.02;
-  gameState.speed += delta * 0.00018;
   gameState.spawnTimer += delta;
   gameState.pickupTimer += delta;
 
   updateDino(delta);
   moveActors(delta, timestamp);
+  transitionChapterIfNeeded();
 
-  const spawnGap = gameState.mode === "special" ? 920 : 1150 - Math.min(gameState.score, 500) * 0.6;
+  const chapter = currentChapter();
+  const spawnGap = Math.max(560, chapter.spawnBase - Math.min(gameState.score, 600) * 0.35);
   if (gameState.spawnTimer >= spawnGap) {
-    spawnObstacle();
+    spawnObstaclePattern();
     gameState.spawnTimer = 0;
   }
 
-  if (gameState.mode === "special" && gameState.pickupTimer >= 1500) {
+  if (chapter.pickupInterval > 0 && gameState.pickupTimer >= chapter.pickupInterval) {
     spawnPickup();
     gameState.pickupTimer = 0;
   }
 
-  if (!gameState.portalTriggered && !gameState.portalReady && gameState.score >= 120) {
-    gameState.portalReady = true;
-    gameState.portalX = stage.clientWidth + 20;
-    portalEl.classList.remove("hidden");
-    portalEl.style.right = "auto";
-  }
-
   if (gameState.portalReady && !gameState.portalTriggered) {
-    gameState.portalX -= (gameState.speed - 1.5) * delta * 0.06;
+    gameState.portalX -= 6.2 * delta * 0.06;
     portalEl.style.left = `${gameState.portalX}px`;
     const portalBounds = getBounds(portalEl);
     const dinoBounds = getBounds(dino);
@@ -340,11 +451,8 @@ function loop(timestamp) {
     } else if (gameState.portalX < -120) {
       gameState.portalReady = false;
       portalEl.classList.add("hidden");
+      gameState.portalX = stage.clientWidth + 20;
     }
-  }
-
-  if (gameState.mode === "special" && gameState.score >= gameState.specialEndScore) {
-    leaveSpecialMode();
   }
 
   if (timestamp < gameState.invulnerableUntil) {
