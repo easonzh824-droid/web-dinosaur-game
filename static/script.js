@@ -17,10 +17,10 @@ const CHAPTERS = {
   plains: {
     name: "草原熱身",
     hint: "熟悉跳躍節奏",
-    speed: 6,
+    speed: 5.2,
     gravity: 0.88,
-    jumpForce: 15.5,
-    spawnBase: 1120,
+    jumpForce: 15.9,
+    spawnBase: 1320,
     pickupInterval: 0,
     stageClass: "chapter-plains",
     message: ["草原上先暖機，障礙比較單純。", "注意節奏，後面每一章都會改變玩法。"],
@@ -33,10 +33,10 @@ const CHAPTERS = {
   sandstorm: {
     name: "沙暴追擊",
     hint: "視野變差，飛鳥變多",
-    speed: 7.2,
-    gravity: 0.92,
-    jumpForce: 15.2,
-    spawnBase: 970,
+    speed: 6.1,
+    gravity: 0.88,
+    jumpForce: 15.7,
+    spawnBase: 1160,
     pickupInterval: 0,
     stageClass: "chapter-sandstorm",
     message: ["沙暴會讓畫面更混亂，飛鳥也會貼著地面突襲。", "有些障礙間距更短，提早準備起跳。"],
@@ -49,10 +49,10 @@ const CHAPTERS = {
   ruins: {
     name: "斷垣遺跡",
     hint: "需要跳躍與蹲下混用",
-    speed: 7.8,
-    gravity: 0.9,
-    jumpForce: 15.7,
-    spawnBase: 920,
+    speed: 6.5,
+    gravity: 0.86,
+    jumpForce: 16.1,
+    spawnBase: 1100,
     pickupInterval: 0,
     stageClass: "chapter-ruins",
     message: ["遺跡裡會出現殘柱和低門，不能只靠跳。", "看到低門時要蹲下滑過去。"],
@@ -66,11 +66,11 @@ const CHAPTERS = {
   special: {
     name: "流星失重區",
     hint: "低重力，收集能量晶體",
-    speed: 8.3,
-    gravity: 0.46,
-    jumpForce: 12.8,
-    spawnBase: 880,
-    pickupInterval: 1450,
+    speed: 6.8,
+    gravity: 0.38,
+    jumpForce: 13.4,
+    spawnBase: 1080,
+    pickupInterval: 1250,
     stageClass: "chapter-special",
     message: ["你進入了低重力流星區，跳躍會更飄。", "藍色晶體能加分，但流星會從高處快速掠過。"],
     patterns: [
@@ -82,10 +82,10 @@ const CHAPTERS = {
   rush: {
     name: "極速衝刺",
     hint: "速度最高，連續判斷",
-    speed: 9.3,
-    gravity: 0.9,
-    jumpForce: 15.4,
-    spawnBase: 760,
+    speed: 7.2,
+    gravity: 0.84,
+    jumpForce: 16,
+    spawnBase: 980,
     pickupInterval: 0,
     stageClass: "chapter-rush",
     message: ["最後衝刺開始，速度大幅提高。", "連續障礙會更密集，蹲和跳要銜接得更快。"],
@@ -177,7 +177,7 @@ function setChapter(chapterKey, showIntro = false) {
 function resetGame() {
   gameState.running = false;
   gameState.score = 0;
-  gameState.lives = 3;
+  gameState.lives = 4;
   gameState.y = 0;
   gameState.velocityY = 0;
   gameState.ducking = false;
@@ -325,7 +325,7 @@ function transitionChapterIfNeeded() {
 function enterSpecialMode() {
   gameState.portalTriggered = true;
   gameState.portalReady = false;
-  gameState.specialEndScore = gameState.score + 220;
+  gameState.specialEndScore = gameState.score + 170;
   portalEl.classList.add("hidden");
   setChapter("special", true);
 }
@@ -336,7 +336,7 @@ function takeHit(now) {
   }
 
   gameState.lives -= 1;
-  gameState.invulnerableUntil = now + 1200;
+  gameState.invulnerableUntil = now + 1600;
   dino.style.opacity = "0.45";
   window.setTimeout(() => {
     dino.style.opacity = "1";
@@ -362,7 +362,7 @@ function moveActors(delta, now) {
   const speed = currentChapter().speed;
 
   gameState.obstacles = gameState.obstacles.filter((obstacle) => {
-    const extra = obstacle.dataset.kind === "meteor" ? 1.4 : 1;
+    const extra = obstacle.dataset.kind === "meteor" ? 1.18 : 1;
     const left = parseFloat(obstacle.style.left) - speed * extra * delta * 0.06;
     obstacle.style.left = `${left}px`;
 
@@ -430,7 +430,7 @@ function loop(timestamp) {
   transitionChapterIfNeeded();
 
   const chapter = currentChapter();
-  const spawnGap = Math.max(560, chapter.spawnBase - Math.min(gameState.score, 600) * 0.35);
+  const spawnGap = Math.max(760, chapter.spawnBase - Math.min(gameState.score, 600) * 0.22);
   if (gameState.spawnTimer >= spawnGap) {
     spawnObstaclePattern();
     gameState.spawnTimer = 0;
