@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小恐龍特別行動</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="game-shell">
+    <section class="hud">
+      <div>
+        <p class="label">分數</p>
+        <p id="score">0</p>
+      </div>
+      <div>
+        <p class="label">生命</p>
+        <p id="lives">3</p>
+      </div>
+      <div>
+        <p class="label">模式</p>
+        <p id="mode">一般地表</p>
+      </div>
+    </section>
+
+    <section class="stage-wrap">
+      <div id="stage" class="stage">
+        <div class="sun"></div>
+        <div class="stars"></div>
+        <div id="dino" class="dino">
+          <div class="eye"></div>
+          <div class="leg leg-front"></div>
+          <div class="leg leg-back"></div>
+        </div>
+        <div class="ground"></div>
+        <div id="specialPortal" class="special-portal hidden"></div>
+        <div id="message" class="message visible">
+          <h1>小恐龍特別行動</h1>
+          <p>按空白鍵開始，空白鍵跳躍，方向下鍵快速落地或蹲下。</p>
+          <p>累積分數後會開啟特殊關卡，進入低重力流星區。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls">
+      <button id="startBtn" type="button">開始遊戲</button>
+      <button id="restartBtn" type="button">重新開始</button>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
