@@ -331,6 +331,74 @@ body {
   display: none;
 }
 
+.assistant {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: min(230px, calc(100% - 28px));
+  min-height: 54px;
+  padding: 8px 10px;
+  border: 2px solid rgba(47, 42, 37, 0.12);
+  border-radius: 8px;
+  color: var(--ink);
+  background: rgba(255, 252, 243, 0.9);
+  box-shadow: 0 10px 24px rgba(54, 34, 18, 0.14);
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease, background 180ms ease;
+}
+
+.assistant.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.assistant.hurt {
+  background: rgba(255, 239, 232, 0.94);
+  border-color: rgba(231, 111, 81, 0.28);
+}
+
+.assistant-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 12px;
+  color: white;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+}
+
+.assistant.hurt .assistant-avatar {
+  background: linear-gradient(135deg, #b84a3a, var(--danger));
+}
+
+.assistant p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.stage.special .assistant {
+  color: white;
+  background: rgba(18, 32, 56, 0.84);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.stage.special .assistant.hurt {
+  background: rgba(67, 36, 48, 0.88);
+  border-color: rgba(255, 183, 168, 0.25);
+}
+
 .message {
   position: absolute;
   inset: 24px 24px auto;
@@ -389,6 +457,10 @@ body {
   display: block;
 }
 
+.assistant.visible {
+  display: grid;
+}
+
 @keyframes run {
   from {
     transform: translateY(0) rotate(-8deg);
@@ -426,6 +498,18 @@ body {
 
   .message {
     inset: 16px 16px auto;
+  }
+
+  .assistant {
+    top: 10px;
+    right: 10px;
+    width: min(190px, calc(100% - 20px));
+    min-height: 48px;
+    padding: 7px 8px;
+  }
+
+  .assistant p {
+    font-size: 12px;
   }
 
   .controls {

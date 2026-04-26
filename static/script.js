@@ -5,6 +5,8 @@ const livesEl = document.getElementById("lives");
 const modeEl = document.getElementById("mode");
 const messageEl = document.getElementById("message");
 const portalEl = document.getElementById("specialPortal");
+const assistantEl = document.getElementById("assistant");
+const assistantTextEl = document.getElementById("assistantText");
 const startBtn = document.getElementById("startBtn");
 const restartBtn = document.getElementById("restartBtn");
 
@@ -29,11 +31,41 @@ const gameState = {
   portalTriggered: false,
   portalX: 0,
   specialEndScore: 0,
+  nextAssistantMilestone: 50,
+  assistantHideTimer: 0,
 };
 
 const FLOOR = 72;
 const NORMAL_MODE_NAME = "一般地表";
 const SPECIAL_MODE_NAME = "特殊關卡";
+const ASSISTANT_MILESTONE_STEP = 50;
+
+const assistantLines = {
+  start: ["好，開跑！我幫你看分數。", "節奏穩住，第一段先暖身。"],
+  hurt: ["哎呀，撞到了！先別慌，還能追回來。", "這下有點痛，但你剛剛差一點就閃過了。", "深呼吸，下一個障礙我們一起抓節奏。"],
+  praise: ["漂亮！{score} 分了，手感正在升溫。", "{score} 分，這波很穩。", "好會跑，{score} 分不是運氣。", "節奏真乾淨，已經 {score} 分！"],
+  crystal: ["晶體收下！這個加分很香。", "抓得準，藍色晶體到手。"],
+  portal: ["傳送門來了，準備進低重力區！", "前方特殊關卡，跳躍會變飄。"],
+  special: ["特殊關卡啟動，我會幫你盯流星。", "低重力模式，別被漂亮星空騙了。"],
+  escape: ["成功脫出！這段操作很帥。", "回到地表，速度會更刺激。"],
+  gameOver: ["辛苦了，這場跑到 {score} 分。再來一次會更順。"],
+};
+
+function randomLine(lines) {
+  return lines[Math.floor(Math.random() * lines.length)];
+}
+
+function showAssistant(lines, options = {}) {
+  const line = Array.isArray(lines) ? randomLine(lines) : lines;
+  assistantTextEl.textContent = line.replace("{score}", Math.floor(gameState.score));
+  assistantEl.classList.add("visible");
+  assistantEl.classList.toggle("hurt", options.mood === "hurt");
+
+  window.clearTimeout(gameState.assistantHideTimer);
+  gameState.assistantHideTimer = window.setTimeout(() => {
+    assistantEl.classList.remove("visible", "hurt");
+  }, options.duration ?? 2600);
+}
 
 function showMessage(title, lines) {
   messageEl.innerHTML = `
@@ -77,6 +109,9 @@ function resetGame() {
   gameState.portalTriggered = false;
   gameState.portalX = 0;
   gameState.specialEndScore = 0;
+  gameState.nextAssistantMilestone = ASSISTANT_MILESTONE_STEP;
+  window.clearTimeout(gameState.assistantHideTimer);
+  assistantEl.classList.remove("visible", "hurt");
   clearActors();
   portalEl.classList.add("hidden");
   portalEl.style.left = "";
@@ -106,6 +141,7 @@ function startGame() {
   gameState.running = true;
   gameState.lastTime = performance.now();
   hideMessage();
+  showAssistant(assistantLines.start);
   requestAnimationFrame(loop);
 }
 
@@ -186,6 +222,7 @@ function enterSpecialMode() {
   gameState.portalReady = false;
   portalEl.classList.add("hidden");
   stage.classList.add("special");
+  showAssistant(assistantLines.special, { duration: 3200 });
   showMessage("特殊關卡啟動", [
     "進入低重力流星區，跳躍更飄，但流星會從高處高速掠過。",
     "收集藍色能量晶體可額外加分，撐到出口就能回到地表。",
@@ -205,6 +242,7 @@ function leaveSpecialMode() {
   gameState.pickupTimer = 0;
   stage.classList.remove("special");
   clearActors();
+  showAssistant(assistantLines.escape, { duration: 3200 });
   showMessage("成功脫出", [
     "你穿越了特殊關卡，地表模式重新開放。",
     "接下來速度會更快，看看你能撐多久。",
@@ -223,6 +261,7 @@ function takeHit(now) {
 
   gameState.lives -= 1;
   gameState.invulnerableUntil = now + 1200;
+  showAssistant(assistantLines.hurt, { mood: "hurt", duration: 3000 });
   dino.style.opacity = "0.45";
   window.setTimeout(() => {
     dino.style.opacity = "1";
@@ -236,6 +275,7 @@ function takeHit(now) {
 
   if (gameState.lives <= 0) {
     gameState.running = false;
+    showAssistant(assistantLines.gameOver, { mood: "hurt", duration: 5200 });
     showMessage("任務失敗", [
       `最終分數：${Math.floor(gameState.score)}`,
       "按空白鍵或點擊重新開始，再挑戰一次。",
@@ -275,6 +315,7 @@ function moveActors(delta, now) {
 
     if (intersects(dinoBounds, getBounds(pickup))) {
       gameState.score += 25;
+      showAssistant(assistantLines.crystal);
       pickup.remove();
       return false;
     }
@@ -328,6 +369,7 @@ function loop(timestamp) {
     gameState.portalX = stage.clientWidth + 20;
     portalEl.classList.remove("hidden");
     portalEl.style.right = "auto";
+    showAssistant(assistantLines.portal, { duration: 3200 });
   }
 
   if (gameState.portalReady && !gameState.portalTriggered) {
@@ -351,6 +393,11 @@ function loop(timestamp) {
     dino.style.filter = "drop-shadow(0 0 12px rgba(231, 111, 81, 0.65))";
   } else {
     dino.style.filter = "none";
+  }
+
+  if (gameState.score >= gameState.nextAssistantMilestone) {
+    showAssistant(assistantLines.praise, { duration: 2800 });
+    gameState.nextAssistantMilestone += ASSISTANT_MILESTONE_STEP;
   }
 
   updateHud();
