@@ -334,12 +334,13 @@ body {
 .assistant {
   position: absolute;
   top: 14px;
+  right: 14px;
   z-index: 4;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  width: min(230px, calc(50% - 20px));
+  width: min(230px, calc(100% - 28px));
   min-height: 54px;
   padding: 8px 10px;
   border: 2px solid rgba(47, 42, 37, 0.12);
@@ -351,17 +352,6 @@ body {
   transform: translateY(-8px);
   pointer-events: none;
   transition: opacity 180ms ease, transform 180ms ease, background 180ms ease;
-}
-
-.assistant-good {
-  left: 14px;
-}
-
-.assistant-bad {
-  right: 14px;
-  color: #5b2323;
-  background: rgba(255, 242, 242, 0.94);
-  border-color: rgba(127, 29, 29, 0.18);
 }
 
 .assistant.visible {
@@ -390,10 +380,6 @@ body {
   background: linear-gradient(135deg, #b84a3a, var(--danger));
 }
 
-.assistant-bad .assistant-avatar {
-  background: linear-gradient(135deg, #7f1d1d, #e76f51);
-}
-
 .assistant p {
   margin: 0;
   overflow-wrap: anywhere;
@@ -411,11 +397,6 @@ body {
 .stage.special .assistant.hurt {
   background: rgba(67, 36, 48, 0.88);
   border-color: rgba(255, 183, 168, 0.25);
-}
-
-.stage.special .assistant-bad {
-  background: rgba(52, 25, 35, 0.88);
-  border-color: rgba(255, 168, 168, 0.22);
 }
 
 .message {
@@ -521,17 +502,10 @@ body {
 
   .assistant {
     top: 10px;
-    width: min(180px, calc(50% - 14px));
+    right: 10px;
+    width: min(190px, calc(100% - 20px));
     min-height: 48px;
     padding: 7px 8px;
-  }
-
-  .assistant-good {
-    left: 10px;
-  }
-
-  .assistant-bad {
-    right: 10px;
   }
 
   .assistant p {
