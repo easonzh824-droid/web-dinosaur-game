@@ -5,8 +5,10 @@ const livesEl = document.getElementById("lives");
 const modeEl = document.getElementById("mode");
 const messageEl = document.getElementById("message");
 const portalEl = document.getElementById("specialPortal");
-const assistantEl = document.getElementById("assistant");
-const assistantTextEl = document.getElementById("assistantText");
+const goodAssistantEl = document.getElementById("goodAssistant");
+const goodAssistantTextEl = document.getElementById("goodAssistantText");
+const badAssistantEl = document.getElementById("badAssistant");
+const badAssistantTextEl = document.getElementById("badAssistantText");
 const startBtn = document.getElementById("startBtn");
 const restartBtn = document.getElementById("restartBtn");
 
@@ -32,7 +34,10 @@ const gameState = {
   portalX: 0,
   specialEndScore: 0,
   nextAssistantMilestone: 50,
-  assistantHideTimer: 0,
+  assistantHideTimers: {
+    good: 0,
+    bad: 0,
+  },
 };
 
 const FLOOR = 72;
@@ -51,20 +56,46 @@ const assistantLines = {
   gameOver: ["辛苦了，這場跑到 {score} 分。再來一次會更順。"],
 };
 
+const badAssistantLines = {
+  start: ["看吧，才剛開始就感覺不妙。", "這局大概也不會太好看。"],
+  hurt: ["我就知道會這樣。", "失誤又來了，真不意外。", "情況只會更糟。"],
+  praise: ["這點分數也沒什麼好驕傲。", "離真正厲害還差得遠。", "別高興太早。"],
+  crystal: ["撿到也沒用，還是會輸。", "小小加分，改不了什麼。"],
+  portal: ["進去之後只會更麻煩。", "你確定要碰那個洞口？"],
+  special: ["夜晚模式只會更危險。", "這下麻煩真的來了。"],
+  escape: ["好不容易出來，但也沒比較好。", "躲過一劫，不代表能撐下去。"],
+  gameOver: ["結束了，結果還是一樣。", "分數再高也救不了這局。"],
+};
+
 function randomLine(lines) {
   return lines[Math.floor(Math.random() * lines.length)];
 }
 
-function showAssistant(lines, options = {}) {
+function showAssistant(targetEl, targetTextEl, lines, options = {}) {
   const line = Array.isArray(lines) ? randomLine(lines) : lines;
-  assistantTextEl.textContent = line.replace("{score}", Math.floor(gameState.score));
-  assistantEl.classList.add("visible");
-  assistantEl.classList.toggle("hurt", options.mood === "hurt");
+  targetTextEl.textContent = line.replace("{score}", Math.floor(gameState.score));
+  targetEl.classList.add("visible");
+  targetEl.classList.toggle("hurt", options.mood === "hurt");
 
-  window.clearTimeout(gameState.assistantHideTimer);
-  gameState.assistantHideTimer = window.setTimeout(() => {
-    assistantEl.classList.remove("visible", "hurt");
+  window.clearTimeout(gameState.assistantHideTimers[options.slot]);
+  gameState.assistantHideTimers[options.slot] = window.setTimeout(() => {
+    targetEl.classList.remove("visible", "hurt");
   }, options.duration ?? 2600);
+}
+
+function showGoodAssistant(lines, options = {}) {
+  showAssistant(goodAssistantEl, goodAssistantTextEl, lines, { ...options, slot: "good" });
+}
+
+function showBadAssistant(lines, options = {}) {
+  showAssistant(badAssistantEl, badAssistantTextEl, lines, { ...options, slot: "bad" });
+}
+
+function hideAssistants() {
+  window.clearTimeout(gameState.assistantHideTimers.good);
+  window.clearTimeout(gameState.assistantHideTimers.bad);
+  goodAssistantEl.classList.remove("visible", "hurt");
+  badAssistantEl.classList.remove("visible", "hurt");
 }
 
 function showMessage(title, lines) {
@@ -110,8 +141,7 @@ function resetGame() {
   gameState.portalX = 0;
   gameState.specialEndScore = 0;
   gameState.nextAssistantMilestone = ASSISTANT_MILESTONE_STEP;
-  window.clearTimeout(gameState.assistantHideTimer);
-  assistantEl.classList.remove("visible", "hurt");
+  hideAssistants();
   clearActors();
   portalEl.classList.add("hidden");
   portalEl.style.left = "";
@@ -141,7 +171,8 @@ function startGame() {
   gameState.running = true;
   gameState.lastTime = performance.now();
   hideMessage();
-  showAssistant(assistantLines.start);
+  showGoodAssistant(assistantLines.start);
+  showBadAssistant(badAssistantLines.start);
   requestAnimationFrame(loop);
 }
 
@@ -222,7 +253,8 @@ function enterSpecialMode() {
   gameState.portalReady = false;
   portalEl.classList.add("hidden");
   stage.classList.add("special");
-  showAssistant(assistantLines.special, { duration: 3200 });
+  showGoodAssistant(assistantLines.special, { duration: 3200 });
+  showBadAssistant(badAssistantLines.special, { duration: 3200 });
   showMessage("特殊關卡啟動", [
     "進入低重力流星區，跳躍更飄，但流星會從高處高速掠過。",
     "收集藍色能量晶體可額外加分，撐到出口就能回到地表。",
@@ -242,7 +274,8 @@ function leaveSpecialMode() {
   gameState.pickupTimer = 0;
   stage.classList.remove("special");
   clearActors();
-  showAssistant(assistantLines.escape, { duration: 3200 });
+  showGoodAssistant(assistantLines.escape, { duration: 3200 });
+  showBadAssistant(badAssistantLines.escape, { duration: 3200 });
   showMessage("成功脫出", [
     "你穿越了特殊關卡，地表模式重新開放。",
     "接下來速度會更快，看看你能撐多久。",
@@ -261,7 +294,8 @@ function takeHit(now) {
 
   gameState.lives -= 1;
   gameState.invulnerableUntil = now + 1200;
-  showAssistant(assistantLines.hurt, { mood: "hurt", duration: 3000 });
+  showGoodAssistant(assistantLines.hurt, { mood: "hurt", duration: 3000 });
+  showBadAssistant(badAssistantLines.hurt, { mood: "hurt", duration: 3000 });
   dino.style.opacity = "0.45";
   window.setTimeout(() => {
     dino.style.opacity = "1";
@@ -275,7 +309,8 @@ function takeHit(now) {
 
   if (gameState.lives <= 0) {
     gameState.running = false;
-    showAssistant(assistantLines.gameOver, { mood: "hurt", duration: 5200 });
+    showGoodAssistant(assistantLines.gameOver, { mood: "hurt", duration: 5200 });
+    showBadAssistant(badAssistantLines.gameOver, { mood: "hurt", duration: 5200 });
     showMessage("任務失敗", [
       `最終分數：${Math.floor(gameState.score)}`,
       "按空白鍵或點擊重新開始，再挑戰一次。",
@@ -315,7 +350,8 @@ function moveActors(delta, now) {
 
     if (intersects(dinoBounds, getBounds(pickup))) {
       gameState.score += 25;
-      showAssistant(assistantLines.crystal);
+      showGoodAssistant(assistantLines.crystal);
+      showBadAssistant(badAssistantLines.crystal, { duration: 2200 });
       pickup.remove();
       return false;
     }
@@ -369,7 +405,8 @@ function loop(timestamp) {
     gameState.portalX = stage.clientWidth + 20;
     portalEl.classList.remove("hidden");
     portalEl.style.right = "auto";
-    showAssistant(assistantLines.portal, { duration: 3200 });
+    showGoodAssistant(assistantLines.portal, { duration: 3200 });
+    showBadAssistant(badAssistantLines.portal, { duration: 3200 });
   }
 
   if (gameState.portalReady && !gameState.portalTriggered) {
@@ -396,7 +433,8 @@ function loop(timestamp) {
   }
 
   if (gameState.score >= gameState.nextAssistantMilestone) {
-    showAssistant(assistantLines.praise, { duration: 2800 });
+    showGoodAssistant(assistantLines.praise, { duration: 2800 });
+    showBadAssistant(badAssistantLines.praise, { duration: 2800 });
     gameState.nextAssistantMilestone += ASSISTANT_MILESTONE_STEP;
   }
 
